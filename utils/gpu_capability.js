@@ -12,7 +12,7 @@ export async function detectGPUCapabilities() {
   // WebGPU check (preferred — direct GPU compute shaders)
   if ('gpu' in navigator) {
     try {
-      const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' });
+      const adapter = await navigator.gpu.requestAdapter();
       if (adapter) {
         const device = await adapter.requestDevice();
         caps.webgpu = true;

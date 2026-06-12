@@ -81,8 +81,8 @@ function injectEnhancer() {
   // Inject the enhancer script into the page's JS context
   const script = document.createElement('script');
   script.type = 'module';
-  script.src = chrome.runtime.getURL('gpu_pipeline/webgpu_upscaler.js');
-  script.dataset.videoSelector = getUniqueSelector(video);
+  const selector = getUniqueSelector(video);
+  script.src = chrome.runtime.getURL('gpu_pipeline/webgpu_upscaler.js') + '?videoSelector=' + encodeURIComponent(selector);
   document.documentElement.appendChild(script);
 }
 

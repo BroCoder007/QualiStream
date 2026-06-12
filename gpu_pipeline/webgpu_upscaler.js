@@ -58,8 +58,7 @@ async function init(videoSelector) {
 }
 
 async function fetchShader(name) {
-  const url = document.currentScript?.dataset?.shaderBase ||
-    /* fallback */ `chrome-extension://${chrome.runtime.id}/gpu_pipeline/shaders/${name}`;
+  const url = new URL('./shaders/' + name, import.meta.url).href;
   const res = await fetch(url);
   return res.text();
 }
@@ -116,5 +115,6 @@ window.addEventListener('message', (e) => {
 });
 
 // Auto-init from injected script tag
-const selector = document.currentScript?.dataset?.videoSelector || 'video';
+const urlParams = new URL(import.meta.url).searchParams;
+const selector = urlParams.get('videoSelector') || 'video';
 init(selector);
