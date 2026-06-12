@@ -44,7 +44,7 @@ sharpSlider.addEventListener('input', () => {
   chrome.storage.sync.set({ sharpness: parseFloat(sharpSlider.value) });
   chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
     if (tab && tab.id) {
-      chrome.tabs.sendMessage(tab.id, { type: 'UPDATE_SETTINGS', sharpness: parseFloat(sharpSlider.value) });
+      chrome.tabs.sendMessage(tab.id, { type: 'UPDATE_SETTINGS', sharpness: parseFloat(sharpSlider.value) }).catch(() => {});
     }
   });
 });
@@ -54,7 +54,7 @@ denoiseSlider.addEventListener('input', () => {
   chrome.storage.sync.set({ denoise: parseFloat(denoiseSlider.value) });
   chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
     if (tab && tab.id) {
-      chrome.tabs.sendMessage(tab.id, { type: 'UPDATE_SETTINGS', denoise: parseFloat(denoiseSlider.value) });
+      chrome.tabs.sendMessage(tab.id, { type: 'UPDATE_SETTINGS', denoise: parseFloat(denoiseSlider.value) }).catch(() => {});
     }
   });
 });

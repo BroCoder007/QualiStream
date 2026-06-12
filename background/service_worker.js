@@ -40,7 +40,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       if (!tab) return;
       const current = tabState.get(tab.id) || {};
       tabState.set(tab.id, { ...current, enhancementEnabled: msg.enabled });
-      chrome.tabs.sendMessage(tab.id, { type: 'TOGGLE_ENHANCEMENT', enabled: msg.enabled });
+      chrome.tabs.sendMessage(tab.id, { type: 'TOGGLE_ENHANCEMENT', enabled: msg.enabled }).catch(() => {});
     });
   }
 });
