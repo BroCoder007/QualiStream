@@ -19,12 +19,8 @@ function isStreamingDomain() {
 
 function isLivelyVideo(video) {
   if (!video || video.tagName !== 'VIDEO') return false;
-  const src = video.currentSrc || video.src || '';
-  const isStream = src.startsWith('blob:') ||
-    src.includes('.m3u8') || src.includes('.mpd') ||
-    STREAM_MIME_TYPES.some(t => video.type?.includes(t));
   const isPlaying = !video.paused && !video.ended && video.readyState >= 2;
-  return (isStream || isStreamingDomain()) && isPlaying;
+  return isPlaying;
 }
 
 function findActiveVideo() {

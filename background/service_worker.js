@@ -7,14 +7,22 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
   if (!tabId) return;
 
   if (msg.type === 'STREAM_STATUS_CHANGE') {
-    const current = tabState.get(tabId) || { enhancementEnabled: false };
-    tabState.set(tabId, { ...current, isStreaming: msg.isStreaming, videoInfo: msg.videoInfo });
+    const current = tabState.get(tabId) || { enhancementEnabled: false, frames: {} };
+    current.frames = current.frames || {};
+    current.frames[sender.frameId] = msg.isStreaming;
+    
+    // It's streaming if ANY frame is streaming
+    const isStreaming = Object.values(current.frames).some(v => v);
+    // Keep the videoInfo if we are streaming, prioritize the active one
+    const videoInfo = msg.isStreaming ? msg.videoInfo : current.videoInfo;
+    
+    tabState.set(tabId, { ...current, isStreaming, videoInfo });
     // Update badge
     chrome.action.setBadgeText({
-      text: msg.isStreaming ? '▶' : '',
+      text: isStreaming ? '▶' : '',
       tabId
     });
-    chrome.action.setBadgeBackgroundColor({ color: msg.isStreaming ? '#00C853' : '#757575', tabId });
+    chrome.action.setBadgeBackgroundColor({ color: isStreaming ? '#00C853' : '#757575', tabId });
   }
 });
 
