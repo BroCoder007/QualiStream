@@ -19,20 +19,35 @@ export class FrameScheduler {
 
   start(callback) {
     this.callback = callback;
-    const loop = (timestamp) => {
-      if (!this.callback) return;
-      const elapsed = timestamp - this.lastTime;
-      if (elapsed >= this.frameInterval) {
-        this.lastTime = timestamp;
-        this.callback(timestamp);
-      }
+    if ('requestVideoFrameCallback' in this.video) {
+      const loop = (now, metadata) => {
+        if (!this.callback) return;
+        this.callback(metadata.mediaTime);
+        this.rafId = this.video.requestVideoFrameCallback(loop);
+      };
+      this.rafId = this.video.requestVideoFrameCallback(loop);
+    } else {
+      const loop = (timestamp) => {
+        if (!this.callback) return;
+        const elapsed = timestamp - this.lastTime;
+        if (elapsed >= this.frameInterval) {
+          this.lastTime = timestamp;
+          this.callback(timestamp);
+        }
+        this.rafId = requestAnimationFrame(loop);
+      };
       this.rafId = requestAnimationFrame(loop);
-    };
-    this.rafId = requestAnimationFrame(loop);
+    }
   }
 
   stop() {
-    if (this.rafId) cancelAnimationFrame(this.rafId);
+    if (this.rafId) {
+      if ('cancelVideoFrameCallback' in this.video) {
+        this.video.cancelVideoFrameCallback(this.rafId);
+      } else {
+        cancelAnimationFrame(this.rafId);
+      }
+    }
     this.callback = null;
   }
 

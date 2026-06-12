@@ -10,7 +10,8 @@ let videoEl, canvasEl, ctx;
 
 async function init(videoSelector) {
   const caps = await detectGPUCapabilities();
-  if (!caps.webgpu) {
+  // Force WebGL fallback until full WGSL pipeline is implemented
+  if (!caps.webgpu || true) {
     // Fall through to WebGL fallback
     import('./webgl_fallback.js').then(m => m.init(videoSelector));
     return;

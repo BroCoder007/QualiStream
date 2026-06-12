@@ -81,21 +81,51 @@ export function init(videoSelector) {
   const uTexelSize = gl.getUniformLocation(prog, 'u_texelSize');
   const uSharpness = gl.getUniformLocation(prog, 'u_sharpness');
 
-  function render() {
-    if (video.paused || video.ended) { requestAnimationFrame(render); return; }
+  let rafId;
+  function render(now, metadata) {
+    if (video.paused || video.ended) {
+      if ('requestVideoFrameCallback' in video) {
+        rafId = video.requestVideoFrameCallback(render);
+      } else {
+        rafId = requestAnimationFrame(render);
+      }
+      return;
+    }
+    
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     gl.viewport(0, 0, canvas.width, canvas.height);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+    try {
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+    } catch(e) {
+      console.warn("Failed to read video frame (CORS/timing issue)", e);
+    }
     gl.uniform2f(uTexelSize, 1.0 / canvas.width, 1.0 / canvas.height);
     gl.uniform1f(uSharpness, 1.2);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-    requestAnimationFrame(render);
+    
+    if ('requestVideoFrameCallback' in video) {
+      rafId = video.requestVideoFrameCallback(render);
+    } else {
+      rafId = requestAnimationFrame(render);
+    }
   }
-  requestAnimationFrame(render);
+
+  if ('requestVideoFrameCallback' in video) {
+    rafId = video.requestVideoFrameCallback(render);
+  } else {
+    rafId = requestAnimationFrame(render);
+  }
 
   window.addEventListener('message', e => {
-    if (e.data?.type === 'SQE_DISABLE') canvas.remove();
+    if (e.data?.type === 'SQE_DISABLE') {
+      if ('cancelVideoFrameCallback' in video) {
+        video.cancelVideoFrameCallback(rafId);
+      } else {
+        cancelAnimationFrame(rafId);
+      }
+      canvas.remove();
+    }
   });
 }
 
