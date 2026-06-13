@@ -92,14 +92,28 @@ export function init(videoSelector) {
       return;
     }
     
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+    }
     gl.viewport(0, 0, canvas.width, canvas.height);
     try {
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
     } catch(e) {
       console.warn("Failed to read video frame (CORS/timing issue)", e);
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      canvas.style.display = 'none';
+      
+      if ('requestVideoFrameCallback' in video) {
+        rafId = video.requestVideoFrameCallback(render);
+      } else {
+        rafId = requestAnimationFrame(render);
+      }
+      return;
     }
+    canvas.style.display = 'block';
     gl.uniform2f(uTexelSize, 1.0 / canvas.width, 1.0 / canvas.height);
     gl.uniform1f(uSharpness, 1.2);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -134,11 +148,17 @@ function compileProgram(gl, vertSrc, fragSrc) {
     const s = gl.createShader(type);
     gl.shaderSource(s, src);
     gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+      console.error('Shader compile error:', gl.getShaderInfoLog(s));
+    }
     return s;
   };
   const prog = gl.createProgram();
   gl.attachShader(prog, compile(gl.VERTEX_SHADER, vertSrc));
   gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, fragSrc));
   gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+    console.error('Program link error:', gl.getProgramInfoLog(prog));
+  }
   return prog;
 }
