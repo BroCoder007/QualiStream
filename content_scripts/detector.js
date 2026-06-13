@@ -78,7 +78,7 @@ function injectEnhancer() {
   const script = document.createElement('script');
   script.type = 'module';
   const selector = getUniqueSelector(video);
-  script.src = chrome.runtime.getURL('gpu_pipeline/webgpu_upscaler.js') + '?videoSelector=' + encodeURIComponent(selector);
+  script.src = chrome.runtime.getURL('gpu_pipeline/webgpu_upscaler.js') + '?videoSelector=' + encodeURIComponent(selector) + '&t=' + Date.now();
   document.documentElement.appendChild(script);
 }
 
