@@ -1,65 +1,18 @@
-// popup/popup.js
-
-const toggle = document.getElementById('enhancementToggle');
-const statusBadge = document.getElementById('streamStatus');
-const gpuInfo = document.getElementById('gpuInfo');
-const sharpSlider = document.getElementById('sharpness');
-const sharpVal = document.getElementById('sharpVal');
-const denoiseSlider = document.getElementById('denoise');
-const denoiseVal = document.getElementById('denoiseVal');
-
-// Load current state from service worker
-chrome.runtime.sendMessage({ type: 'GET_TAB_STATE' }, (state) => {
-  if (!state) return;
-
-  if (state.isStreaming) {
-    statusBadge.textContent = `Streaming: ${state.videoInfo?.width}×${state.videoInfo?.height}`;
-    statusBadge.className = 'badge badge--on';
-    toggle.disabled = false;
-  }
-
-  toggle.checked = state.enhancementEnabled;
+const fields=['brightness','contrast','saturation','sharpness'];
+const enabled=document.getElementById('enabled');
+const status=document.getElementById('status');
+let updateTimer;
+function show(data) {
+  if (!data || data.error) { status.textContent=data?.error || 'Cannot access this tab. Open a regular website and reload it.'; return; }
+  enabled.checked=data.settings.enabled;
+  for(const field of fields){document.getElementById(field).value=data.settings[field];document.getElementById(`${field}Value`).textContent=`${data.settings[field]}%`;}
+  status.textContent = !data.frames ? 'This page cannot be accessed. Open a regular website and reload it.' : data.detected ? `${data.detected} video(s) found across ${data.frames} accessible frame(s). ${data.settings.enabled ? `${data.applied} filter(s) applied; player support varies.` : 'Enhancement is off.'}` : 'No HTML video found yet. Start playback or reload the page.';
+}
+async function send(type,settings){ try { show(await chrome.runtime.sendMessage({type,settings})); } catch {status.textContent='Could not connect to the extension. Reload this page.';} }
+enabled.addEventListener('change',()=>send('SET_TAB',{enabled:enabled.checked}));
+for(const field of fields) document.getElementById(field).addEventListener('input',event=>{
+  document.getElementById(`${field}Value`).textContent=`${event.target.value}%`;
+  clearTimeout(updateTimer); updateTimer=setTimeout(()=>{ const settings={}; for(const f of fields) settings[f]=Number(document.getElementById(f).value); send('SET_TAB',settings); },100);
 });
-
-// Load saved settings
-chrome.storage.sync.get(['sharpness', 'denoise'], (settings) => {
-  if (settings.sharpness) {
-    sharpSlider.value = settings.sharpness;
-    sharpVal.textContent = settings.sharpness;
-  }
-  if (settings.denoise) {
-    denoiseSlider.value = settings.denoise;
-    denoiseVal.textContent = settings.denoise;
-  }
-});
-
-// Toggle enhancement
-toggle.addEventListener('change', () => {
-  chrome.runtime.sendMessage({ type: 'SET_ENHANCEMENT', enabled: toggle.checked });
-});
-
-// Sliders
-sharpSlider.addEventListener('input', () => {
-  sharpVal.textContent = sharpSlider.value;
-  chrome.storage.sync.set({ sharpness: parseFloat(sharpSlider.value) });
-  chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
-    if (tab && tab.id) {
-      chrome.tabs.sendMessage(tab.id, { type: 'UPDATE_SETTINGS', sharpness: parseFloat(sharpSlider.value) }).catch(() => {});
-    }
-  });
-});
-
-denoiseSlider.addEventListener('input', () => {
-  denoiseVal.textContent = denoiseSlider.value;
-  chrome.storage.sync.set({ denoise: parseFloat(denoiseSlider.value) });
-  chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
-    if (tab && tab.id) {
-      chrome.tabs.sendMessage(tab.id, { type: 'UPDATE_SETTINGS', denoise: parseFloat(denoiseSlider.value) }).catch(() => {});
-    }
-  });
-});
-
-document.getElementById('optionsLink').addEventListener('click', (e) => {
-  e.preventDefault();
-  chrome.runtime.openOptionsPage();
-});
+document.getElementById('reset').addEventListener('click',()=>send('SET_TAB',{brightness:100,contrast:110,saturation:105,sharpness:35}));
+send('GET_TAB');
