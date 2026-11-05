@@ -76,7 +76,21 @@
       record.applied=video.style.getPropertyValue('filter');
     }
     if (!settings.enabled) { for (const item of definitions.values()) item.svg.remove(); definitions.clear(); }
-    return {detected:found.size,applied:managed.size};
+    let playing=0, buffering=0, bufferedSeconds=null;
+    for (const video of found) {
+      if (video.paused !== false || video.ended) continue;
+      playing++;
+      if (video.readyState < 3 && !video.seeking) buffering++;
+      try {
+        for (let i=0; i<video.buffered.length; i++) {
+          if (video.buffered.start(i) <= video.currentTime && video.buffered.end(i) >= video.currentTime) {
+            const seconds=Math.max(0,video.buffered.end(i)-video.currentTime);
+            bufferedSeconds=bufferedSeconds === null ? seconds : Math.min(bufferedSeconds,seconds);
+          }
+        }
+      } catch { /* Some players do not expose buffered ranges. */ }
+    }
+    return {detected:found.size,applied:managed.size,playing,buffering,bufferedSeconds};
   }
   function schedule() { if (!settings.enabled) return; if (timer === null) timer=setTimeout(scan,150); }
   observe(document);

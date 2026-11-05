@@ -21,3 +21,8 @@ test('preserves a filter replaced by the page when disabling',()=>{
  const x=setup();x.send({type:'APPLY_SETTINGS',settings:{enabled:true,brightness:100,contrast:100,saturation:100,sharpness:0}});
  x.video.style.setProperty('filter','sepia(1)','');x.send({type:'APPLY_SETTINGS',settings:{enabled:false}});assert.equal(x.video.style.getPropertyValue(),'sepia(1)');
 });
+test('reports playback waiting and buffered time without modifying playback',()=>{
+ const x=setup(); Object.assign(x.video,{paused:false,ended:false,seeking:false,readyState:2,currentTime:5,buffered:{length:1,start:()=>0,end:()=>12}});
+ const status=x.send({type:'GET_STATUS'}); assert.equal(status.playing,1);assert.equal(status.buffering,1);assert.equal(status.bufferedSeconds,7);assert.equal(x.video.currentTime,5);
+ x.video.seeking=true;assert.equal(x.send({type:'GET_STATUS'}).buffering,0);
+});

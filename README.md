@@ -18,6 +18,7 @@ No npm installation or build is required to load this version: the manifest refe
 - **Enable enhancement** applies settings to detected HTML video elements in the active tab, including accessible iframe documents and open shadow roots. Disable it to restore the page's previous inline video filter. If the page replaces its own filter while enhancement is active, that newer value is preserved where possible.
 - **Sharpness** controls a 3×3 SVG convolution filter. Set it to zero to omit the sharpening stage.
 - **Brightness**, **contrast**, and **saturation** adjust appearance with CSS filters. Reset returns to the defaults.
+- **Refresh playback status** checks whether a playing video appears to be waiting for data and, when available, reports buffered seconds ahead. These are browser-reported indicators, not a speed test or a diagnosis of the cause.
 - The status reports the number of detected video elements and filters applied across accessible frames. It reports DOM changes, not proof that every player actually displays the effect. Start playback or reload if nothing is detected.
 
 Settings are local to a browser session and tab. They are cleared when the extension is reloaded, updated, disabled, or the browser restarts; settings are also removed when the tab closes. Settings are not shared between tabs or synced across devices.
@@ -27,6 +28,8 @@ Settings are local to a browser session and tab. They are cleared when the exten
 QualiStream can only affect HTML video elements in webpages where its content script can run. It does not enhance native desktop applications, mobile apps, browser internal pages, extension pages, arbitrary canvas-based players or videos inside closed shadow roots. Some embedded frames may be inaccessible. Local files require the browser's separate **Allow access to file URLs** setting and are not included in this version's HTTP(S)-only content script matching.
 
 Protected video and hardware overlays may ignore filters or display differently; compatibility varies by browser, player and operating system. No content protection is bypassed. Fullscreen behavior and subtitles vary by player: filters are applied to the video element, so separate captions and controls are not intentionally filtered. Test the specific player you care about.
+
+QualiStream cannot increase internet bandwidth, change a streaming provider’s connection, force a higher bitrate or prevent buffering. Lowering the player’s resolution, using a stable network or reducing other network activity may help.
 
 The browser chooses how to render SVG and CSS filters and may use GPU acceleration or software rendering. This version does not implement WebGPU, WebGL upscaling, AI super-resolution, temporal denoising, HDR tonemapping or source-resolution changes. GPU use and performance have not been benchmarked. Complex filters can increase power use or reduce frame rate; set sharpness to zero or disable the extension if playback suffers.
 

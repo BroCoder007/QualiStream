@@ -33,7 +33,8 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
       }
       const results = await broadcast(tab.id, {type:'GET_STATUS'});
       const states=results.filter(Boolean);
-      return {settings, frames:states.length, detected:states.reduce((n,s)=>n+s.detected,0), applied:states.reduce((n,s)=>n+s.applied,0)};
+      const bufferValues=states.map(s=>s.bufferedSeconds).filter(v=>typeof v === 'number' && Number.isFinite(v));
+      return {settings, frames:states.length, detected:states.reduce((n,s)=>n+(s.detected||0),0), applied:states.reduce((n,s)=>n+(s.applied||0),0), playing:states.reduce((n,s)=>n+(s.playing||0),0), buffering:states.reduce((n,s)=>n+(s.buffering||0),0), bufferedSeconds:bufferValues.length ? Math.min(...bufferValues) : null};
     }
     return {};
   })().then(respond).catch(e=>respond({error:String(e)}));

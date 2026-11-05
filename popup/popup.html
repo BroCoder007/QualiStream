@@ -1,7 +1,7 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>QualiStream</title><link rel="stylesheet" href="popup.css"></head><body>
 <main><header><h1>QualiStream</h1><p>Adjust video appearance on this tab</p></header>
 <label class="toggle"><input type="checkbox" id="enabled"> Enable enhancement</label>
-<p id="status" role="status" aria-live="polite">Checking this tab…</p>
+<p id="status" role="status" aria-live="polite">Checking this tab…</p><p id="playback" class="note">Playback information unavailable.</p><button id="refresh" type="button">Refresh playback status</button>
 <label for="brightness">Brightness <output id="brightnessValue">100%</output></label><input type="range" id="brightness" min="50" max="150" value="100">
 <label for="contrast">Contrast <output id="contrastValue">110%</output></label><input type="range" id="contrast" min="50" max="150" value="110">
 <label for="saturation">Saturation <output id="saturationValue">105%</output></label><input type="range" id="saturation" min="50" max="150" value="105">
