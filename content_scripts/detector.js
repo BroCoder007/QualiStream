@@ -1,94 +1,90 @@
-// content_scripts/detector.js
-
-const STREAM_MIME_TYPES = [
-  'application/x-mpegURL',
-  'application/dash+xml',
-  'video/mp4',
-  'video/webm'
-];
-
-const KNOWN_STREAMING_DOMAINS = [
-  'youtube.com', 'twitch.tv', 'netflix.com', 'primevideo.com',
-  'disneyplus.com', 'hbomax.com', 'hulu.com', 'peacocktv.com',
-  'paramountplus.com', 'crunchyroll.com', 'vimeo.com', 'dailymotion.com'
-];
-
-function isStreamingDomain() {
-  return KNOWN_STREAMING_DOMAINS.some(d => location.hostname.includes(d));
-}
-
-function isLivelyVideo(video) {
-  if (!video || video.tagName !== 'VIDEO') return false;
-  const isPlaying = !video.paused && !video.ended && video.readyState >= 2;
-  return isPlaying;
-}
-
-function findActiveVideo() {
-  const videos = Array.from(document.querySelectorAll('video'));
-  // Prefer largest visible video (most likely the main player)
-  return videos
-    .filter(v => v.offsetWidth > 100 && v.offsetHeight > 100)
-    .sort((a, b) => (b.offsetWidth * b.offsetHeight) - (a.offsetWidth * a.offsetHeight))
-    .find(isLivelyVideo) || null;
-}
-
-// Poll and report stream state to service worker
-let lastStreamState = false;
-
-function checkAndReport() {
-  const video = findActiveVideo();
-  const isStreaming = !!video;
-  if (isStreaming !== lastStreamState) {
-    lastStreamState = isStreaming;
-    chrome.runtime.sendMessage({
-      type: 'STREAM_STATUS_CHANGE',
-      isStreaming,
-      videoInfo: video ? {
-        width: video.videoWidth,
-        height: video.videoHeight,
-        src: video.currentSrc
-      } : null
-    });
+(() => {
+  if (window.__qualistreamLoaded) return;
+  window.__qualistreamLoaded = true;
+  let settings = {enabled:false, brightness:100, contrast:110, saturation:105, sharpness:35};
+  const managed = new Map();
+  const definitions = new Map();
+  const namespace = 'http://www.w3.org/2000/svg';
+  let sequence = 0;
+  function sharpenFor(root, value) {
+    let item = definitions.get(root);
+    if (!item) {
+      const svg = document.createElementNS(namespace, 'svg');
+      svg.setAttribute('aria-hidden', 'true');
+      svg.style.cssText = 'position:fixed;width:0;height:0;pointer-events:none;overflow:hidden';
+      const defs = document.createElementNS(namespace, 'defs');
+      const filter = document.createElementNS(namespace, 'filter');
+      const id = `qualistream-sharpen-${Date.now()}-${sequence++}`;
+      filter.setAttribute('id',id);
+      filter.setAttribute('color-interpolation-filters','sRGB');
+      const kernel = document.createElementNS(namespace, 'feConvolveMatrix');
+      kernel.setAttribute('order','3'); kernel.setAttribute('edgeMode','duplicate');
+      kernel.setAttribute('preserveAlpha','true');
+      filter.appendChild(kernel); defs.appendChild(filter); svg.appendChild(defs);
+      (root === document ? document.documentElement : root).appendChild(svg);
+      item={svg,kernel,id}; definitions.set(root,item);
+    }
+    const strength = Math.max(0,Math.min(100,Number(value)||0))/100;
+    item.kernel.setAttribute('kernelMatrix',`0 ${-strength} 0 ${-strength} ${1+4*strength} ${-strength} 0 ${-strength} 0`);
+    return `url(#${item.id})`;
   }
-}
-
-// Observe DOM mutations for dynamically loaded players (SPAs)
-const observer = new MutationObserver(() => checkAndReport());
-observer.observe(document.body, { childList: true, subtree: true });
-
-// Poll every 2 seconds as a safety net
-setInterval(checkAndReport, 2000);
-checkAndReport();
-
-// Listen for enhancement toggle from popup
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  if (msg.type === 'TOGGLE_ENHANCEMENT') {
-    if (msg.enabled) {
-      injectEnhancer();
-    } else {
-      removeEnhancer();
+  let timer = null;
+  const observed = new WeakSet();
+  const observer = new MutationObserver(schedule);
+  function observe(root) {
+    if (observed.has(root)) return;
+    observed.add(root);
+    observer.observe(root, {childList:true, subtree:true});
+  }
+  function videosIn(root, found) {
+    for (const element of root.querySelectorAll('*')) {
+      if (element.tagName === 'VIDEO') found.add(element);
+      if (element.shadowRoot) { observe(element.shadowRoot); videosIn(element.shadowRoot, found); }
     }
   }
-});
-
-function injectEnhancer() {
-  const video = findActiveVideo();
-  if (!video) return;
-  // Inject the enhancer script into the page's JS context
-  const script = document.createElement('script');
-  script.type = 'module';
-  const selector = getUniqueSelector(video);
-  script.src = chrome.runtime.getURL('gpu_pipeline/webgpu_upscaler.js') + '?videoSelector=' + encodeURIComponent(selector) + '&t=' + Date.now();
-  document.documentElement.appendChild(script);
-}
-
-function removeEnhancer() {
-  window.postMessage({ type: 'SQE_DISABLE' }, '*');
-  document.getElementById('sqe-canvas-overlay')?.remove();
-}
-
-function getUniqueSelector(el) {
-  if (el.id) return `#${el.id}`;
-  if (el.className) return `video.${[...el.classList].join('.')}`;
-  return 'video';
-}
+  function restore(video, record) {
+    // Preserve a filter changed by the page after the extension applied its own.
+    if (video.style.getPropertyValue('filter') === record.applied) {
+      if (record.inline) video.style.setProperty('filter',record.inline,record.priority);
+      else video.style.removeProperty('filter');
+    }
+  }
+  function scan() {
+    timer = null;
+    const found = new Set(); videosIn(document, found);
+    for (const [video, record] of managed) {
+      if (!found.has(video) || !settings.enabled) { restore(video,record); managed.delete(video); }
+    }
+    if (settings.enabled) for (const video of found) {
+      let record = managed.get(video);
+      if (!record) {
+        const inline=video.style.getPropertyValue('filter');
+        const priority=video.style.getPropertyPriority('filter');
+        const computed=getComputedStyle(video).filter;
+        record={inline,priority,base:computed && computed !== 'none' ? computed : '',applied:''};
+        managed.set(video,record);
+      } else if (record.applied && video.style.getPropertyValue('filter') !== record.applied) {
+        // The player changed its inline filter. Treat its new value as the base.
+        record.inline=video.style.getPropertyValue('filter');
+        record.priority=video.style.getPropertyPriority('filter');
+        const computed=getComputedStyle(video).filter;
+        record.base=computed && computed !== 'none' ? computed : '';
+      }
+      const sharpness = settings.sharpness > 0 ? sharpenFor(video.getRootNode(),settings.sharpness) : '';
+      const filter=`${record.base} ${sharpness} brightness(${settings.brightness}%) contrast(${settings.contrast}%) saturate(${settings.saturation}%)`.trim();
+      video.style.setProperty('filter',filter,'important');
+      record.applied=video.style.getPropertyValue('filter');
+    }
+    if (!settings.enabled) { for (const item of definitions.values()) item.svg.remove(); definitions.clear(); }
+    return {detected:found.size,applied:managed.size};
+  }
+  function schedule() { if (!settings.enabled) return; if (timer === null) timer=setTimeout(scan,150); }
+  observe(document);
+  // Poll for shadow roots added after the host was inserted and for SPA navigation.
+  setInterval(schedule,2500);
+  chrome.runtime.onMessage.addListener((message, sender, respond) => {
+    if (message.type === 'APPLY_SETTINGS') { settings=message.settings; respond(scan()); }
+    else if (message.type === 'GET_STATUS') respond(scan());
+  });
+  chrome.runtime.sendMessage({type:'GET_SETTINGS'}).then(value=>{if(value && !value.error) settings=value; scan();}).catch(()=>scan());
+})();

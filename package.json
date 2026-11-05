@@ -1,11 +1,10 @@
 {
-  "name": "stream-quality-enhancer",
-  "version": "1.0.0",
-  "description": "",
+  "name": "qualistream",
+  "version": "2.0.0",
+  "description": "Adjust the appearance of supported HTML video in Chromium browsers",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "webpack"
+    "test": "node --test tests/*.test.cjs"
   },
   "keywords": [],
   "author": "",
